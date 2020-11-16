@@ -24,6 +24,7 @@ import com.google.auto.factory.AutoFactory;
 import com.google.auto.factory.Provided;
 
 import de.uka.ipd.sdq.simucomframework.variables.StackContext;
+import de.uka.ipd.sdq.simucomframework.variables.stackframe.SimulatedStackframe;
 
 /**
  * Switch for Usage Scenario in Usage Model
@@ -112,9 +113,12 @@ public class UsageScenarioSwitch<T> extends UsagemodelSwitch<T> {
         // create new stack frame for input parameter
         SimulatedStackHelper.createAndPushNewStackFrame(this.context.getStack(),
                 entryLevelSystemCall.getInputParameterUsages_EntryLevelSystemCall());
-        providedDelegationSwitch.doSwitch(entryLevelSystemCall.getProvidedRole_EntryLevelSystemCall());
+        final SimulatedStackframe<Object> outputFrame = providedDelegationSwitch.doSwitch(entryLevelSystemCall.getProvidedRole_EntryLevelSystemCall());
         this.context.getStack().removeStackFrame();
 
+        SimulatedStackHelper.addParameterToStackFrame(outputFrame,
+                entryLevelSystemCall.getOutputParameterUsages_EntryLevelSystemCall(), this.context.getStack().currentStackFrame());
+        
         this.context.getRuntimeState().getEventNotificationHelper()
                 .firePassedEvent(new ModelElementPassedEvent<EntryLevelSystemCall>(entryLevelSystemCall, EventType.END,
                         this.context));
