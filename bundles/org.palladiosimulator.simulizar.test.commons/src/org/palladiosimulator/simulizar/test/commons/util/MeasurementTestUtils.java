@@ -1,6 +1,7 @@
 package org.palladiosimulator.simulizar.test.commons.util;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -20,17 +21,14 @@ import org.palladiosimulator.metricspec.MetricSetDescription;
 import org.palladiosimulator.metricspec.util.MetricSpecSwitch;
 
 public final class MeasurementTestUtils {
-    
-    public static <Q extends Quantity> void allDoubleMeasurementValuesMatch(Measurement measurement,
-            BaseMetricDescription valueMetric, Unit<Q> unit, Matcher<Double> matcher) {
-
-        var dataSeriesIdx = (new MetricSpecSwitch<Integer>() {
+	private static int getDataSeriesIdxRecursive(MetricDescription metricDescription, MetricDescription baseMetricDescription) {
+		return (new MetricSpecSwitch<Integer>() {
             int index = 0;
 
             @Override
             public Integer caseBaseMetricDescription(BaseMetricDescription object) {
                 if (object.getId()
-                    .equals(valueMetric.getId())) {
+                    .equals(baseMetricDescription.getId())) {
                     return index;
                 }
                 return -1;
@@ -49,8 +47,14 @@ public final class MeasurementTestUtils {
                 return result;
             }
 
-        }).doSwitch(measurement.getMeasuringType()
-            .getMetric());
+        }).doSwitch(metricDescription);
+	}
+	
+    public static <Q extends Quantity> void allDoubleMeasurementValuesMatch(Measurement measurement,
+            BaseMetricDescription valueMetric, Unit<Q> unit, Matcher<Double> matcher) {
+
+        var dataSeriesIdx = getDataSeriesIdxRecursive(measurement.getMeasuringType()
+                .getMetric(), valueMetric);
 
         measurement.getMeasurementRanges()
             .stream()
@@ -61,6 +65,23 @@ public final class MeasurementTestUtils {
             .flatMap(dao -> dao.getMeasurements()
                 .stream())
             .forEach(m -> assertThat(m.doubleValue(unit), matcher));
+    }
+    
+    public static <Q extends Quantity> void containsMoreThanZeroMeasurementsFor(Measurement measurement,
+            BaseMetricDescription valueMetric, Unit<Q> unit) {
+
+        var dataSeriesIdx = getDataSeriesIdxRecursive(measurement.getMeasuringType()
+                .getMetric(), valueMetric);
+
+        assertTrue(measurement.getMeasurementRanges()
+            .stream()
+            .map(MeasurementRange::getRawMeasurements)
+            .map(rm -> rm.getDataSeries()
+                .get(dataSeriesIdx))
+            .map(ds -> MeasurementsUtility.<Q> getMeasurementsDao(ds))
+            .flatMap(dao -> dao.getMeasurements()
+                .stream())
+            .findAny().isPresent());
     }
 
     public static Optional<Measurement> getMeasurementOfAt(Collection<Measurement> measurements,
